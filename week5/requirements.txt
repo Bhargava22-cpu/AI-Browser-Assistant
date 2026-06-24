@@ -1,0 +1,4 @@
+fastapi>=0.115,<0.140
+uvicorn[standard]>=0.30,<0.35
+sqlmodel>=0.0.21,<0.1
+aiosqlite>=0.20,<0.22

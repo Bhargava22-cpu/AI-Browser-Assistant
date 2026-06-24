@@ -1,0 +1,21 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# macOS
+.DS_Store
+
+# Node / React
+week6/ui/node_modules/
+week6/ui/dist/
+week6/ui/.DS_Store
+
+# Database
+*.db
+
+# Screenshots / binaries
+week1/screenshots/
+week2/screenshots/

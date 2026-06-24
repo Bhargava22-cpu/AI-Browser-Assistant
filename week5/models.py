@@ -1,0 +1,114 @@
+import json
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+from pydantic import BaseModel, model_validator
+from sqlmodel import Field, SQLModel
+
+
+# ---------- SQLModel tables ----------
+
+class Task(SQLModel, table=True):
+    task_id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    command: str
+    status: str = Field(default="pending")  # pending | running | completed | failed
+    steps: str = Field(default="[]")        # JSON-serialized list[str]
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    error: Optional[str] = Field(default=None)
+
+
+class UserProfile(SQLModel, table=True):
+    id: int = Field(default=1, primary_key=True)  # single-row table
+    name: str
+    email: str
+    phone: str
+    address: str        # JSON string {"street", "city", "state", "pincode", "country"}
+    college: str
+    degree: str
+    graduation_year: int
+    skills: str         # JSON string list[str]
+    resume_path: str
+    linkedin: str
+    github: str
+
+
+# ---------- API request/response models ----------
+
+class CommandRequest(BaseModel):
+    command: str
+
+
+class CommandResponse(BaseModel):
+    task_id: str
+    status: str
+    message: str
+
+
+class TaskResponse(BaseModel):
+    task_id: str
+    command: str
+    status: str
+    steps: list[str]
+    created_at: datetime
+    error: Optional[str]
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_steps(cls, data):
+        if isinstance(data, dict) and isinstance(data.get("steps"), str):
+            data["steps"] = json.loads(data["steps"])
+        return data
+
+
+class AddressModel(BaseModel):
+    street: str
+    city: str
+    state: str
+    pincode: str
+    country: str
+
+
+class UserProfileRequest(BaseModel):
+    name: str
+    email: str
+    phone: str
+    address: AddressModel
+    college: str
+    degree: str
+    graduation_year: int
+    skills: list[str]
+    resume_path: str
+    linkedin: str
+    github: str
+
+
+class UserProfileResponse(BaseModel):
+    name: str
+    email: str
+    phone: str
+    address: AddressModel
+    college: str
+    degree: str
+    graduation_year: int
+    skills: list[str]
+    resume_path: str
+    linkedin: str
+    github: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_json_fields(cls, data):
+        if isinstance(data, dict):
+            if isinstance(data.get("address"), str):
+                data["address"] = json.loads(data["address"])
+            if isinstance(data.get("skills"), str):
+                data["skills"] = json.loads(data["skills"])
+        return data
+
+
+class AgentAction(BaseModel):
+    task_id: str
+    step_index: int
+    content: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
