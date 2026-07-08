@@ -21,11 +21,16 @@ def get_text_model() -> str:
 
 
 def parse_json_response(raw: str):
-    """Strip an optional ```json ... ``` code fence and parse the JSON body."""
+    """Strip an optional ```json ... ``` code fence and parse the JSON body.
+
+    strict=False allows literal control characters (e.g. raw newlines) inside
+    JSON string values — the model is asked to escape "\\n" itself, but for
+    multi-line content like a poem it sometimes emits a real newline instead,
+    which strict json.loads rejects even though the content itself is fine."""
     raw = raw.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
         raw = raw.strip()
-    return json.loads(raw)
+    return json.loads(raw, strict=False)

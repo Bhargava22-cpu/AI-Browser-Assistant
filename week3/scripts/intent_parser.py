@@ -102,7 +102,10 @@ async def parse_intent(user_command: str) -> dict:
         raw = raw.strip()
 
     try:
-        return json.loads(raw)
+        # strict=False allows literal control characters (e.g. raw newlines) inside
+        # JSON string values — see modules/email_assistant/_llm.py's parse_json_response
+        # for why this matters (a poem/multi-line body_intent can trip strict parsing).
+        return json.loads(raw, strict=False)
     except json.JSONDecodeError as e:
         raise ValueError(f"Model returned invalid JSON: {e}\nRaw: {raw}")
 
