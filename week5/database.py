@@ -1,5 +1,7 @@
 import json
+import sys
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -7,7 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, create_engine, select
 
-from models import Task, UserProfile
+from models import EmailDraft, Task, UserProfile
+
+# Allow importing the repo-root modules/ package (modules/form_filling), same as
+# week5/agent_runner.py — needed for the shared learned-field label normalizer.
+PROJECT_ROOT = Path(__file__).parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from modules.form_filling import normalize_label  # noqa: E402
 
 WEEK1_PROFILE_PATH = Path(__file__).parent.parent / "week1" / "data" / "user_profile.json"
 DB_PATH = Path(__file__).parent / "agent.db"
@@ -36,6 +46,18 @@ async def get_session():
 
 async def init_db():
     SQLModel.metadata.create_all(sync_engine)
+    _ensure_learned_fields_column()
+
+
+def _ensure_learned_fields_column() -> None:
+    """SQLModel.metadata.create_all() only creates missing tables, it never alters
+    existing ones — so a pre-existing agent.db from before this column was added
+    needs a one-time, idempotent migration."""
+    with sync_engine.connect() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(userprofile)")}
+        if columns and "learned_fields" not in columns:
+            conn.exec_driver_sql("ALTER TABLE userprofile ADD COLUMN learned_fields VARCHAR DEFAULT '{}'")
+            conn.commit()
 
 
 async def seed_profile_from_json():
@@ -146,3 +168,67 @@ async def upsert_user_profile(data: dict) -> UserProfile:
         await session.flush()
         await session.refresh(profile)
         return profile
+
+
+# ---------- Learned fields (answers to previously-missing form fields) ----------
+
+async def get_learned_fields() -> dict:
+    profile = await get_user_profile()
+    if profile is None:
+        return {}
+    return json.loads(profile.learned_fields)
+
+
+async def save_learned_fields(answers: dict) -> dict:
+    async with get_session() as session:
+        result = await session.execute(select(UserProfile).where(UserProfile.id == 1))
+        profile = result.scalar_one_or_none()
+        if profile is None:
+            raise ValueError("No user profile found — cannot save learned fields")
+
+        learned = json.loads(profile.learned_fields)
+        learned.update({normalize_label(k): v for k, v in answers.items()})
+        profile.learned_fields = json.dumps(learned)
+
+        session.add(profile)
+        await session.flush()
+        await session.refresh(profile)
+        return json.loads(profile.learned_fields)
+
+
+# ---------- EmailDraft CRUD (Module 2 — draft/confirm/send flow) ----------
+
+async def create_email_draft(task_id: str, to_email: str, subject: str, body: str) -> EmailDraft:
+    async with get_session() as session:
+        draft = EmailDraft(task_id=task_id, to_email=to_email, subject=subject, body=body)
+        session.add(draft)
+        await session.flush()
+        await session.refresh(draft)
+        return draft
+
+
+async def get_email_draft(draft_id: str) -> Optional[EmailDraft]:
+    async with get_session() as session:
+        result = await session.execute(select(EmailDraft).where(EmailDraft.draft_id == draft_id))
+        return result.scalar_one_or_none()
+
+
+async def update_email_draft_status(
+    draft_id: str,
+    status: str,
+    error: Optional[str] = None,
+    sent_at: Optional[datetime] = None,
+) -> Optional[EmailDraft]:
+    async with get_session() as session:
+        result = await session.execute(select(EmailDraft).where(EmailDraft.draft_id == draft_id))
+        draft = result.scalar_one_or_none()
+        if draft:
+            draft.status = status
+            if error is not None:
+                draft.error = error
+            if sent_at is not None:
+                draft.sent_at = sent_at
+            session.add(draft)
+            await session.flush()
+            await session.refresh(draft)
+        return draft

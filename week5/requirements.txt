@@ -2,3 +2,7 @@ fastapi>=0.115,<0.140
 uvicorn[standard]>=0.30,<0.35
 sqlmodel>=0.0.21,<0.1
 aiosqlite>=0.20,<0.22
+groq>=0.37,<0.40
+google-api-python-client>=2.130,<3
+google-auth-httplib2>=0.2,<0.3
+google-auth-oauthlib>=1.2,<2

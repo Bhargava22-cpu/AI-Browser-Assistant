@@ -12,7 +12,7 @@ from sqlmodel import Field, SQLModel
 class Task(SQLModel, table=True):
     task_id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     command: str
-    status: str = Field(default="pending")  # pending | running | completed | failed
+    status: str = Field(default="pending")  # pending | running | awaiting_confirmation | completed | failed
     steps: str = Field(default="[]")        # JSON-serialized list[str]
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     error: Optional[str] = Field(default=None)
@@ -31,6 +31,19 @@ class UserProfile(SQLModel, table=True):
     resume_path: str
     linkedin: str
     github: str
+    learned_fields: str = Field(default="{}")  # JSON string {normalized_label: answer}
+
+
+class EmailDraft(SQLModel, table=True):
+    draft_id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    task_id: str
+    to_email: str
+    subject: str
+    body: str
+    status: str = Field(default="pending_confirmation")  # pending_confirmation | sent | failed | discarded
+    error: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    sent_at: Optional[datetime] = Field(default=None)
 
 
 # ---------- API request/response models ----------
@@ -112,3 +125,24 @@ class AgentAction(BaseModel):
     step_index: int
     content: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class LearnedFieldsRequest(BaseModel):
+    # normalized_label -> answer, e.g. {"how did you hear about us?": "Referred by a friend"}
+    answers: dict[str, str]
+
+
+class LearnedFieldsResponse(BaseModel):
+    learned_fields: dict[str, str]
+
+
+class EmailDraftResponse(BaseModel):
+    draft_id: str
+    task_id: str
+    to_email: str
+    subject: str
+    body: str
+    status: str
+    error: Optional[str]
+    created_at: datetime
+    sent_at: Optional[datetime]

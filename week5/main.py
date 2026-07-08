@@ -10,6 +10,9 @@ import database
 from models import (
     CommandRequest,
     CommandResponse,
+    EmailDraftResponse,
+    LearnedFieldsRequest,
+    LearnedFieldsResponse,
     TaskResponse,
     UserProfileRequest,
     UserProfileResponse,
@@ -72,6 +75,49 @@ async def get_profile():
 async def update_profile(body: UserProfileRequest):
     profile = await database.upsert_user_profile(body.model_dump())
     return UserProfileResponse.model_validate(profile.model_dump())
+
+
+@app.get("/user/learned-fields", response_model=LearnedFieldsResponse)
+async def get_learned_fields():
+    return LearnedFieldsResponse(learned_fields=await database.get_learned_fields())
+
+
+@app.post("/user/learned-fields", response_model=LearnedFieldsResponse)
+async def post_learned_fields(body: LearnedFieldsRequest):
+    # Keys should be the exact field label as reported in a task's "needs manual input"
+    # step (case/whitespace-insensitive) — modules.form_filling.mapper.normalize_label
+    # is the canonical normalizer applied on the matching side.
+    try:
+        learned = await database.save_learned_fields(body.answers)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return LearnedFieldsResponse(learned_fields=learned)
+
+
+@app.get("/email/drafts/{draft_id}", response_model=EmailDraftResponse)
+async def get_email_draft(draft_id: str):
+    draft = await database.get_email_draft(draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return EmailDraftResponse.model_validate(draft.model_dump())
+
+
+@app.post("/email/drafts/{draft_id}/send", response_model=EmailDraftResponse)
+async def send_email_draft(draft_id: str):
+    # agent_runner.confirm_email_send is the only path that ever calls the Gmail API —
+    # this route exists solely so a human click can reach it.
+    draft = await agent_runner.confirm_email_send(draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return EmailDraftResponse.model_validate(draft.model_dump())
+
+
+@app.post("/email/drafts/{draft_id}/discard", response_model=EmailDraftResponse)
+async def discard_email_draft(draft_id: str):
+    draft = await agent_runner.discard_email_draft(draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return EmailDraftResponse.model_validate(draft.model_dump())
 
 
 @app.websocket("/ws/{task_id}")

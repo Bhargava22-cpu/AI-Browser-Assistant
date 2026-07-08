@@ -44,6 +44,12 @@ class BrowserWorker:
 _worker = BrowserWorker()
 
 
+def get_worker() -> BrowserWorker:
+    """Accessor for the shared browser worker, for callers outside the LangChain
+    tool-call interface (e.g. modules/form_filling) that need direct Playwright access."""
+    return _worker
+
+
 @tool
 def navigate_to(url: str) -> str:
     """Navigate the browser to a given URL. Input should be a full URL including https://"""

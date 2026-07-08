@@ -16,6 +16,14 @@ week6/ui/.DS_Store
 # Database
 *.db
 
+# Gmail OAuth client secret + cached user tokens
+week5/credentials/
+
 # Screenshots / binaries
 week1/screenshots/
 week2/screenshots/
+modules/form_filling/screenshots/
+**/.gitkeep
+week6/ui/README.md
+.claude/
+CLAUDE.md

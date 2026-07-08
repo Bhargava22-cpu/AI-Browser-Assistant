@@ -9,6 +9,7 @@ export default defineConfig({
       '/command': 'http://localhost:8000',
       '/status':  'http://localhost:8000',
       '/user':    'http://localhost:8000',
+      '/email':   'http://localhost:8000',
       '/ws': { target: 'ws://localhost:8000', ws: true },
     },
   },
