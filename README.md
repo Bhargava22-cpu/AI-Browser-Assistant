@@ -71,8 +71,8 @@ Build phase (Weeks 7–10):
 
 | Module | Status | Output |
 |---|---|---|
-| 1 — Intelligent Form Filling | live-verified | Detects fields on any page (incl. iframes), fills from profile, generates long-text answers via LLM, retries on validation errors, remembers answers to previously-missing fields, uploads resumes, previews before submit |
-| 2 — Email Assistant | live-verified (V1: draft/send/confirm) | Composes an email from a one-line intent via LLM, requires an explicit Send/Discard confirmation before the real Gmail API call — never auto-sends |
+| 1 — Intelligent Form Filling | live-verified | Detects fields on any page (incl. iframes), fills from profile, generates long-text answers via LLM (grounded in each field's own label, not assumed to be a job application), retries on validation errors, remembers answers to previously-missing fields, uploads resumes, previews before submit |
+| 2 — Email Assistant | live-verified (V1: draft/send/confirm) | Composes an email from a one-line intent via LLM, accepts a bare recipient (defaults to `@gmail.com`) or a full address, requires an explicit Send/Discard confirmation before the real Gmail API call — never auto-sends |
 | 3 — Page & Content Summarisation | not started | |
 | 4 — Google Calendar Intelligence | not started | |
 | 5 — Cross-Module Commands | not started | |
