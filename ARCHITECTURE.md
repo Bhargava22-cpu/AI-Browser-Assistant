@@ -1,5 +1,87 @@
 # AI Browser Agent — Architecture
 
+## Project Evolution — Week 1 → Now
+
+Each week's checkpoint built directly on the last; nothing below was thrown away, only
+wrapped by the next layer. Week 6 reached the target architecture from `CLAUDE.md`
+(`React UI → FastAPI → AgentExecutor → [LLM, Browser Tools, Memory] → External APIs`);
+Week 7 (current, build phase) is the same shape with `intent_parser` now routing to two
+new purpose-built pipelines instead of everything going through the agent.
+
+```
+Week 1 — Python fundamentals
+┌────────────────────────────────────────────────────┐
+│ read_profile.py — async JSON reader                │
+│ No browser. No LLM. No server.                      │
+└────────────────────────────────────────────────────┘
+                    │
+                    │  adds browser automation
+                    ▼
+Week 2 — Playwright
+┌────────────────────────────────────────────────────┐
+│ navigator.py / form_filler.py / tab_manager.py      │
+│ Standalone async scripts driving a real Chromium    │
+│ browser. Still no LLM, no server.                   │
+└────────────────────────────────────────────────────┘
+                    │
+                    │  adds the "brain" (still disconnected)
+                    ▼
+Week 3 — LLM intent parsing
+┌────────────────────────────────────────────────────┐
+│ intent_parser.py (Groq)                             │
+│ NL command -> structured {action, target_url,       │
+│ data, steps} JSON. Not wired to the browser yet.    │
+└────────────────────────────────────────────────────┘
+                    │
+                    │  wires LLM + browser into one loop
+                    ▼
+Week 4 — LangChain / LangGraph agent
+┌────────────────────────────────────────────────────┐
+│ ReAct agent: navigate_to / click_element /          │
+│ type_text tools (wraps Week 2's Playwright)         │
+│ + conversation memory (MemorySaver).                │
+│ First real "agent", not just scripts.               │
+└────────────────────────────────────────────────────┘
+                    │
+                    │  adds a server + persistence
+                    ▼
+Week 5 — FastAPI + SQLite + WebSockets
+┌────────────────────────────────────────────────────┐
+│ Wraps the Week 4 agent as a background task.        │
+│ POST /command, GET /status, WS /ws/{id}.            │
+│ Task + UserProfile persisted to SQLite.             │
+└────────────────────────────────────────────────────┘
+                    │
+                    │  adds the UI
+                    ▼
+Week 6 — React UI  (Checkpoint 4: target architecture reached)
+┌────────────────────────────────────────────────────┐
+│ React UI -> FastAPI -> AgentExecutor ->             │
+│   [LLM, Browser Tools, Memory]                      │
+│   -> External APIs (Gmail, Calendar)                │
+│ CommandBar / ActivityLog / ProfileSettings          │
+│ talk to Week 5's backend via REST + WebSocket.      │
+└────────────────────────────────────────────────────┘
+                    │
+                    │  intent_parser stops just describing,
+                    │  starts ROUTING to purpose-built pipelines
+                    ▼
+Week 7 — Build Phase (current)
+┌────────────────────────────────────────────────────┐
+│ action == "fill_form" -> modules/form_filling       │
+│   (deterministic pipeline, 2 LLM calls)             │
+│ action == "email"     -> modules/email_assistant    │
+│   (deterministic pipeline, 1 LLM call)              │
+│ else                  -> Week 4 LangGraph agent     │
+│   (unchanged - general browsing fallback)           │
+│                                                      │
+│ + EmailDraft table, learned_fields column           │
+│ + Gmail OAuth (first real external API)             │
+│ + UI restyled; ActivityLog renders structured       │
+│   per-field outcome rows, not raw log lines         │
+└────────────────────────────────────────────────────┘
+```
+
 ## Component Diagram
 
 ```
