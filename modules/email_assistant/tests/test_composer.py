@@ -33,6 +33,14 @@ def test_invalid_recipient_raises_without_calling_llm():
     mock_instance.assert_not_called()
 
 
+def test_bare_recipient_defaults_to_gmail():
+    mock_client = _mock_llm_response({"subject": "Hi", "body": "Body text"})
+    with patch("modules.email_assistant.composer._client_instance", return_value=mock_client):
+        draft = run(compose_email(_PROFILE, "harshithsarma0406", "tell them I applied"))
+
+    assert draft.to_email == "harshithsarma0406@gmail.com"
+
+
 def test_empty_body_intent_raises_without_calling_llm():
     with patch("modules.email_assistant.composer._client_instance") as mock_instance:
         with pytest.raises(ValueError, match="body_intent is required"):

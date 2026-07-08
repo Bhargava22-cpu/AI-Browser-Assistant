@@ -1,42 +1,44 @@
 import { useEffect, useRef, useState } from 'react'
 
 const STATUS_BADGE = {
-  pending:              'bg-yellow-900 text-yellow-300',
-  running:              'bg-blue-900 text-blue-300',
-  awaiting_confirmation: 'bg-amber-900 text-amber-300',
-  completed:            'bg-emerald-900 text-emerald-300',
-  failed:               'bg-red-900 text-red-300',
+  pending:               'bg-amber-50 text-amber-600',
+  running:               'bg-blue-50 text-blue-600',
+  awaiting_confirmation: 'bg-amber-50 text-amber-600',
+  completed:             'bg-emerald-50 text-emerald-600',
+  failed:                'bg-red-50 text-red-500',
 }
 
 function stepStyle(content) {
-  if (content.startsWith('[model]'))  return 'text-indigo-300'
-  if (content.startsWith('[tools]'))  return 'text-emerald-300'
-  if (content.startsWith('[ERROR]'))  return 'text-red-400'
-  return 'text-gray-400'
+  if (content.startsWith('[model]'))  return 'text-blue-500'
+  if (content.startsWith('[tools]'))  return 'text-emerald-600'
+  if (content.startsWith('[ERROR]'))  return 'text-red-500'
+  return 'text-slate-400'
 }
 
 // Shared by both step parsers below — each module emits a different step-string
 // vocabulary, but they collapse onto the same four visual outcome categories.
 const OUTCOME_META = {
-  success: { icon: '✓', className: 'text-emerald-300' },
-  failure: { icon: '✕', className: 'text-red-400' },
-  warn:    { icon: '⚠', className: 'text-amber-300' },
-  info:    { icon: '›', className: 'text-gray-400' },
+  success: { icon: '✓', chip: 'bg-emerald-50 text-emerald-600' },
+  failure: { icon: '✕', chip: 'bg-red-50 text-red-500' },
+  warn:    { icon: '⚠', chip: 'bg-amber-50 text-amber-600' },
+  info:    { icon: '›', chip: 'bg-slate-100 text-slate-400' },
 }
 
 function OutcomeRow({ parsed }) {
-  const { icon, className } = OUTCOME_META[parsed.kind]
+  const { icon, chip } = OUTCOME_META[parsed.kind]
   return (
-    <div className={`flex items-start gap-2 text-xs font-mono leading-relaxed ${className}`}>
-      <span className="shrink-0">{icon}</span>
-      <span className="flex-1 min-w-0">
-        {parsed.label && <span className="font-medium">{parsed.label}</span>}
+    <div className="flex items-start gap-3 py-2">
+      <span className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-semibold ${chip}`}>
+        {icon}
+      </span>
+      <div className="flex-1 min-w-0 text-sm text-slate-600 leading-snug">
+        {parsed.label && <span className="font-medium text-slate-700">{parsed.label}</span>}
         {parsed.label && parsed.statusText && ' — '}
         {parsed.statusText}
         {parsed.detail && (
-          <span className="block text-[11px] opacity-75 mt-0.5 break-words">{parsed.detail}</span>
+          <span className="block text-xs text-slate-400 mt-0.5 break-words">{parsed.detail}</span>
         )}
-      </span>
+      </div>
     </div>
   )
 }
@@ -140,17 +142,17 @@ function EmailDraftCard({ draftId, toEmail, subject, taskId, onTaskUpdate }) {
   }
 
   return (
-    <div className="border border-amber-900/50 bg-amber-950/20 rounded-lg p-3 flex flex-col gap-2">
-      <div className="flex items-center gap-2 text-xs text-amber-300">
-        <span>⚠</span>
-        <span className="font-medium">Email draft — needs your confirmation</span>
+    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 flex flex-col gap-3 my-1">
+      <div className="flex items-center gap-2 text-xs font-semibold text-amber-700">
+        <span className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center">⚠</span>
+        Email draft — needs your confirmation
       </div>
-      <div className="text-xs text-gray-300 flex flex-col gap-0.5">
-        <div><span className="text-gray-500">To:</span> {toEmail}</div>
-        <div><span className="text-gray-500">Subject:</span> {draft?.subject ?? subject}</div>
+      <div className="text-sm text-slate-600 flex flex-col gap-0.5">
+        <div><span className="text-slate-400">To </span>{toEmail}</div>
+        <div><span className="text-slate-400">Subject </span>{draft?.subject ?? subject}</div>
       </div>
       {draft && (
-        <p className="text-xs text-gray-400 whitespace-pre-wrap font-mono leading-relaxed border-t border-gray-800 pt-2">
+        <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed border-t border-amber-200/60 pt-2">
           {draft.body}
         </p>
       )}
@@ -159,21 +161,21 @@ function EmailDraftCard({ draftId, toEmail, subject, taskId, onTaskUpdate }) {
           <button
             onClick={() => act('send')}
             disabled={pendingAction !== null}
-            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-medium rounded-md transition-colors"
+            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm shadow-blue-600/20 transition-colors"
           >
             {pendingAction === 'send' ? 'Sending…' : 'Send'}
           </button>
           <button
             onClick={() => act('discard')}
             disabled={pendingAction !== null}
-            className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-xs font-medium rounded-md transition-colors"
+            className="px-4 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 disabled:opacity-50 text-slate-500 text-xs font-semibold rounded-lg transition-colors"
           >
             {pendingAction === 'discard' ? 'Discarding…' : 'Discard'}
           </button>
         </div>
       ) : (
-        <p className={`text-xs font-medium ${
-          resolved === 'sent' ? 'text-emerald-300' : resolved === 'failed' ? 'text-red-400' : 'text-gray-400'
+        <p className={`text-xs font-semibold ${
+          resolved === 'sent' ? 'text-emerald-600' : resolved === 'failed' ? 'text-red-500' : 'text-slate-400'
         }`}>
           {resolved === 'sent' && '✓ Sent'}
           {resolved === 'failed' && `✕ Send failed${error ? `: ${error}` : ''}`}
@@ -231,16 +233,16 @@ function TaskCard({ task, onTaskUpdate }) {
   }, [task.steps.length])
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm text-gray-200 font-medium leading-snug">{task.command}</p>
-        <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[task.status] ?? 'bg-gray-800 text-gray-400'}`}>
+    <div className="bg-white rounded-2xl shadow-sm shadow-slate-200 p-4 flex flex-col gap-1">
+      <div className="flex items-start justify-between gap-2 pb-2">
+        <p className="text-sm text-slate-700 font-medium leading-snug">{task.command}</p>
+        <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold ${STATUS_BADGE[task.status] ?? 'bg-slate-100 text-slate-400'}`}>
           {task.status}
         </span>
       </div>
 
       {task.steps.length > 0 && (
-        <div className="flex flex-col gap-1 border-t border-gray-800 pt-3 max-h-64 overflow-y-auto">
+        <div className="flex flex-col divide-y divide-slate-100 border-t border-slate-100 max-h-72 overflow-y-auto">
           {task.steps.map((s, i) => {
             const emailParsed = parseEmailStep(s)
             if (emailParsed) {
@@ -259,14 +261,14 @@ function TaskCard({ task, onTaskUpdate }) {
             }
             const formParsed = parseFormFillingStep(s)
             if (formParsed) return <OutcomeRow key={i} parsed={formParsed} />
-            return <p key={i} className={`text-xs font-mono leading-relaxed ${stepStyle(s)}`}>{s}</p>
+            return <p key={i} className={`text-xs font-mono leading-relaxed py-1.5 ${stepStyle(s)}`}>{s}</p>
           })}
           <div ref={bottomRef} />
         </div>
       )}
 
       {task.live && task.steps.length === 0 && (
-        <p className="text-xs text-gray-500 animate-pulse">Waiting for agent…</p>
+        <p className="text-xs text-slate-400 animate-pulse pt-1">Waiting for agent…</p>
       )}
     </div>
   )
@@ -275,7 +277,7 @@ function TaskCard({ task, onTaskUpdate }) {
 export default function ActivityLog({ tasks, onTaskUpdate }) {
   if (tasks.length === 0) {
     return (
-      <div className="text-center text-gray-600 text-sm py-16">
+      <div className="bg-white rounded-2xl shadow-sm shadow-slate-200 text-center text-slate-400 text-sm py-14">
         No tasks yet. Run a command above.
       </div>
     )
@@ -283,7 +285,7 @@ export default function ActivityLog({ tasks, onTaskUpdate }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-500">Activity Log</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 px-1">Activity Log</h2>
       {tasks.map(task => (
         <TaskCard key={task.taskId} task={task} onTaskUpdate={onTaskUpdate} />
       ))}

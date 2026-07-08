@@ -6,21 +6,26 @@ from ._llm import get_groq_client as _client_instance
 from ._llm import get_text_model, parse_json_response
 from .models import FieldSpec
 
-_GENERATION_SYSTEM_PROMPT = """You are writing free-text answers for a job/internship
-application form on behalf of a candidate, using their profile as context.
+_GENERATION_SYSTEM_PROMPT = """You are writing free-text answers for fields on a web form,
+on behalf of the person described by the profile below.
 
-You will be given the candidate's profile and a list of form fields (marker_id + label)
-that each need a written answer (e.g. "Why do you want this role?", a short Statement of
-Purpose, "Tell us about yourself").
+You will be given that person's profile and a list of form fields (marker_id + label). Each
+field's label tells you what question that specific field is actually asking (e.g. "Why do
+you want this role?", "Tell us about yourself", "What's your favorite hobby?", "Describe
+your experience with X") — the form could be a job application, a survey, a signup form, or
+anything else. Answer what the label asks, using only the register/topic implied by that
+label — do not default to job-application phrasing (e.g. "excited to apply my skills") for a
+field that isn't asking about a job.
 
-Write a concise, genuine-sounding answer (2-5 sentences) for EACH field, grounded only in
-the profile facts provided — do not invent employers, projects, or credentials not present
-in the profile.
+Write a concise, genuine-sounding answer (1-5 sentences) for EACH field, grounded only in
+the profile facts provided — do not invent employers, projects, credentials, or opinions not
+present in the profile. If the profile has no facts relevant to what a field is asking,
+write the shortest reasonable generic answer rather than fabricating specifics.
 
 Output ONLY a JSON object mapping each marker_id to its answer string. No markdown, no
 explanation. Example:
 {"abc123": "I'm a Computer Science graduate from IIT Bombay with hands-on experience in
-Python and React, and I'm excited to apply my skills to a real engineering team."}
+Python and React."}
 """
 
 

@@ -8,6 +8,18 @@ from ._llm import get_text_model, parse_json_response
 from .models import EmailDraftPlan
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_BARE_LOCAL_PART_RE = re.compile(r"^[^@\s]+$")
+_DEFAULT_DOMAIN = "gmail.com"
+
+
+def _normalize_recipient(to_email: str) -> str:
+    """A recipient typed without a domain (e.g. "harshithsarma0406") is assumed to be
+    a Gmail address, since that's the only domain this assistant currently sends to/from
+    in practice — saves typing "@gmail.com" on every command."""
+    to_email = (to_email or "").strip()
+    if to_email and _BARE_LOCAL_PART_RE.match(to_email):
+        return f"{to_email}@{_DEFAULT_DOMAIN}"
+    return to_email
 
 _COMPOSE_SYSTEM_PROMPT = """You are writing a professional email on behalf of the
 sender, using their profile only for the signature (their name).
@@ -30,10 +42,12 @@ async def compose_email(
     body_intent: str,
     subject_hint: str | None = None,
 ) -> EmailDraftPlan:
-    if not _EMAIL_RE.match(to_email or ""):
+    to_email = _normalize_recipient(to_email)
+    if not _EMAIL_RE.match(to_email):
         raise ValueError(
             f"'{to_email}' doesn't look like an email address — group/contact-name "
-            "resolution isn't built yet, so the command needs a literal recipient address"
+            "resolution isn't built yet, so the command needs a literal recipient address "
+            "(a bare username is assumed to be @gmail.com)"
         )
     if not body_intent:
         raise ValueError("body_intent is required to compose an email")

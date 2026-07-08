@@ -3,6 +3,11 @@ import CommandBar from './components/CommandBar'
 import ActivityLog from './components/ActivityLog'
 import ProfileSettings from './components/ProfileSettings'
 
+const TABS = [
+  { key: 'agent', label: 'Agent' },
+  { key: 'profile', label: 'Profile' },
+]
+
 export default function App() {
   const [tab, setTab] = useState('agent')
   const [tasks, setTasks] = useState([])
@@ -16,39 +21,52 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
-      {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center gap-3">
-        <span className="text-xl font-semibold tracking-tight">AI Browser Agent</span>
-      </header>
+    <div className="min-h-screen bg-gradient-to-b from-[#eef2fb] to-[#e3e9f7]">
+      <div className="max-w-3xl mx-auto px-4 py-6 flex flex-col gap-5">
+        <header className="bg-white rounded-2xl shadow-sm shadow-slate-200 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg font-semibold shrink-0">
+              A
+            </div>
+            <div>
+              <h1 className="text-base font-semibold text-slate-800 leading-tight">AI Browser Agent</h1>
+              <p className="text-xs text-slate-400">Autonomous browsing, on command</p>
+            </div>
+          </div>
 
-      {/* Tab nav */}
-      <nav className="border-b border-gray-800 px-6 flex gap-1">
-        {['agent', 'profile'].map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm capitalize transition-colors ${
-              tab === t
-                ? 'text-indigo-400 border-b-2 border-indigo-400'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            {t === 'agent' ? 'Agent' : 'Profile'}
-          </button>
-        ))}
-      </nav>
+          <nav className="flex items-center gap-1 bg-slate-100 rounded-full p-1">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                  tab === t.key
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        </header>
 
-      {/* Content */}
-      <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6 flex flex-col gap-6">
-        {tab === 'agent' && (
-          <>
-            <CommandBar onTaskStarted={addTask} />
-            <ActivityLog tasks={tasks} onTaskUpdate={updateTask} />
-          </>
-        )}
-        {tab === 'profile' && <ProfileSettings />}
-      </main>
+        <main className="flex flex-col gap-5">
+          {tab === 'agent' && (
+            <>
+              <section className="bg-white rounded-2xl shadow-sm shadow-slate-200 p-5">
+                <CommandBar onTaskStarted={addTask} />
+              </section>
+              <ActivityLog tasks={tasks} onTaskUpdate={updateTask} />
+            </>
+          )}
+          {tab === 'profile' && (
+            <section className="bg-white rounded-2xl shadow-sm shadow-slate-200 p-5">
+              <ProfileSettings />
+            </section>
+          )}
+        </main>
+      </div>
     </div>
   )
 }
