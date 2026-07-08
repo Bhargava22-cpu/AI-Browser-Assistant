@@ -5,12 +5,13 @@ from .filler import apply_field_plan
 from .generator import generate_long_text_batch
 from .mapper import map_fields_to_profile
 from .mapper import normalize_label
-from .models import BrowserWorkerProtocol, FieldSource, FormFillResult
+from .models import BrowserWorkerProtocol, FieldPlan, FieldSource, FieldSpec, FillOutcome, FormFillResult
 from .preview import build_preview
 from .profile_utils import flatten_profile
+from .reply_matcher import match_reply_to_fields
 from .upload import upload_resume
 
-__all__ = ["fill_form", "normalize_label"]
+__all__ = ["fill_form", "normalize_label", "describe_fill_result", "answer_missing_fields"]
 
 
 def fill_form(
@@ -82,3 +83,73 @@ def fill_form(
         )
 
     return worker.run(_pipeline)
+
+
+def describe_fill_result(result: FormFillResult) -> list[str]:
+    """Human-readable lines describing a FormFillResult's field outcomes, upload
+    outcome, missing fields, and preview — for callers to stream as progress steps
+    and/or join into a summary. Excludes warnings: callers already have
+    `result.warnings` directly, and those use a different message prefix
+    (`[warning]`) than everything else here.
+    """
+    lines = []
+    for outcome in result.filled_fields:
+        status = "filled" if outcome.success else f"FAILED ({outcome.error})"
+        label = outcome.field.label or outcome.field.selector
+        lines.append(f"{label}: {status}")
+
+    if result.upload and result.upload.attempted:
+        upload_status = "uploaded" if result.upload.success else f"FAILED ({result.upload.error})"
+        lines.append(f"resume upload: {upload_status}")
+
+    if result.missing_fields:
+        missing_labels = ", ".join(f.label or f.selector for f in result.missing_fields)
+        lines.append(
+            f"needs manual input: {missing_labels} — answer once via "
+            "POST /user/learned-fields (key = exact field label) and it will be "
+            "filled automatically on future forms"
+        )
+
+    preview_note = f" (screenshot: {result.preview.screenshot_path})" if result.preview.screenshot_path else ""
+    lines.append(f"Preview ready — review before submitting{preview_note}")
+
+    return lines
+
+
+def answer_missing_fields(
+    worker: BrowserWorkerProtocol,
+    missing_fields: list[FieldSpec],
+    reply: str,
+) -> tuple[list[FillOutcome], list[FieldSpec], dict[str, str]]:
+    """Matches a freeform natural-language reply against fields a prior fill_form()
+    run left missing, and fills whichever ones the reply answers on the SAME live
+    page fill_form() used. Returns (outcomes for fields it filled, fields still
+    unanswered, a normalized_label -> answer map for the caller to persist via
+    learned_fields so future forms skip asking again).
+
+    Only safe to call while the page from the original fill_form() run is still
+    open — each FieldSpec holds a live Playwright Frame reference tied to that
+    page. If the page has since navigated away, filling those fields fails (each
+    field fails independently and reports its own error, same as apply_field_plan
+    elsewhere — this never raises for a stale frame).
+    """
+    if not missing_fields or not reply:
+        return [], missing_fields, {}
+
+    answers = match_reply_to_fields(reply, missing_fields)
+    if not answers:
+        return [], missing_fields, {}
+
+    plans: list[FieldPlan] = []
+    still_missing: list[FieldSpec] = []
+    for f in missing_fields:
+        answer = answers.get(f.marker_id)
+        if answer:
+            plans.append(FieldPlan(field=f, value=answer, source=FieldSource.PROFILE))
+        else:
+            still_missing.append(f)
+
+    outcomes, _ = worker.run(lambda page: apply_field_plan(plans)) if plans else ([], [])
+    learned = {normalize_label(p.field.label): p.value for p in plans if p.field.label}
+
+    return outcomes, still_missing, learned

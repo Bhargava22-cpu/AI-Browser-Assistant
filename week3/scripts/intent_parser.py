@@ -13,11 +13,15 @@ Output ONLY valid JSON — no markdown, no explanation.
 
 Schema:
 {
-  "action": "fill_form" | "navigate" | "email" | "summarize" | "click",
+  "action": "fill_form" | "navigate" | "email" | "summarize" | "click" | "calendar",
   "target_url": "<url or null>",
   "data": { <relevant key-value pairs or empty> },
   "steps": ["<step 1>", "<step 2>", ...]
 }
+
+For "calendar", data must include "schedule_request": the natural language scheduling
+phrase verbatim (dates, times, recurrence, and any named invitees) — the calendar module
+resolves relative dates and recurrence itself, so don't pre-parse it here.
 
 If the command is ambiguous and cannot be resolved, output:
 {
@@ -41,6 +45,9 @@ Output: {"action": "summarize", "target_url": null, "data": {"scope": "current_p
 
 User: click the submit button
 Output: {"action": "click", "target_url": null, "data": {"element": "submit button"}, "steps": ["Locate submit button on page", "Click it"]}
+
+User: add DSA practice every day at 8pm for 2 weeks
+Output: {"action": "calendar", "target_url": null, "data": {"schedule_request": "add DSA practice every day at 8pm for 2 weeks"}, "steps": ["Parse the scheduling request", "Resolve dates and recurrence", "Show event preview to user", "Create event on confirmation"]}
 """
 
 TEST_COMMANDS = [
@@ -49,6 +56,7 @@ TEST_COMMANDS = [
     "email my mentor that I applied to the internship",
     "summarize the current page",
     "click the login button",
+    "add DSA practice every day at 8pm for 2 weeks",
     "apply to this internship, add the deadline to calendar, email my mentor",
     "close all tabs",
     "do something useful",

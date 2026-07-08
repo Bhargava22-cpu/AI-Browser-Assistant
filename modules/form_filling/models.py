@@ -23,7 +23,11 @@ class FieldSource(str, Enum):
 @dataclass
 class FieldSpec:
     marker_id: str
-    frame: Frame  # live reference — safe only because the whole pipeline runs inside one worker.run() call
+    frame: Frame  # live reference, tied to whatever page detected it. Safe to touch
+    # from any thread as long as actual Playwright calls only ever happen inside a
+    # worker.run() closure — fill_form()'s own pipeline is one such call, and
+    # answer_missing_fields() is a second, later one reusing the same reference
+    # (only valid as long as that page hasn't since navigated away).
     selector: str
     label: str
     field_type: FieldType
@@ -80,3 +84,17 @@ class FormFillResult:
 
 class BrowserWorkerProtocol(Protocol):
     def run(self, fn: Callable[[Page], Any]) -> Any: ...
+
+
+def describe_fields_for_llm(fields: list[FieldSpec], include_required: bool = False) -> list[dict]:
+    """Compact field descriptors for LLM prompts — marker_id, label, field_type,
+    options, and optionally required. Shared by mapper.py's profile-mapping call
+    and reply_matcher.py's reply-matching call, which each build their own prompt
+    around the same underlying field shape."""
+    descriptions = []
+    for f in fields:
+        d = {"marker_id": f.marker_id, "label": f.label, "field_type": f.field_type.value, "options": f.options}
+        if include_required:
+            d["required"] = f.required
+        descriptions.append(d)
+    return descriptions

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, create_engine, select
 
-from models import EmailDraft, Task, UserProfile
+from models import CalendarEventDraft, EmailDraft, Task, UserProfile
 
 # Allow importing the repo-root modules/ package (modules/form_filling), same as
 # week5/agent_runner.py — needed for the shared learned-field label normalizer.
@@ -228,6 +228,88 @@ async def update_email_draft_status(
                 draft.error = error
             if sent_at is not None:
                 draft.sent_at = sent_at
+            session.add(draft)
+            await session.flush()
+            await session.refresh(draft)
+        return draft
+
+
+async def update_email_draft_content(draft_id: str, subject: str, body: str) -> Optional[EmailDraft]:
+    """Overwrites a still-pending draft's subject/body in place — used by the
+    "suggest changes" revise flow, which re-composes the same draft rather than
+    creating a new one."""
+    async with get_session() as session:
+        result = await session.execute(select(EmailDraft).where(EmailDraft.draft_id == draft_id))
+        draft = result.scalar_one_or_none()
+        if draft:
+            draft.subject = subject
+            draft.body = body
+            session.add(draft)
+            await session.flush()
+            await session.refresh(draft)
+        return draft
+
+
+# ---------- CalendarEventDraft CRUD (Module 4 — draft/confirm/discard flow) ----------
+
+async def create_calendar_draft(
+    task_id: str,
+    title: str,
+    start: str,
+    end: str,
+    tz: str,
+    recurrence: Optional[str],
+    attendees: list[str],
+    description: str,
+) -> CalendarEventDraft:
+    async with get_session() as session:
+        draft = CalendarEventDraft(
+            task_id=task_id,
+            title=title,
+            start=start,
+            end=end,
+            timezone=tz,
+            recurrence=recurrence,
+            attendees=json.dumps(attendees),
+            description=description,
+        )
+        session.add(draft)
+        await session.flush()
+        await session.refresh(draft)
+        return draft
+
+
+async def get_calendar_draft(draft_id: str) -> Optional[CalendarEventDraft]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(CalendarEventDraft).where(CalendarEventDraft.draft_id == draft_id)
+        )
+        return result.scalar_one_or_none()
+
+
+async def update_calendar_draft_status(
+    draft_id: str,
+    status: str,
+    error: Optional[str] = None,
+    event_id: Optional[str] = None,
+    html_link: Optional[str] = None,
+    confirmed_at: Optional[datetime] = None,
+) -> Optional[CalendarEventDraft]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(CalendarEventDraft).where(CalendarEventDraft.draft_id == draft_id)
+        )
+        draft = result.scalar_one_or_none()
+        if draft:
+            draft.status = status
+            if error is not None:
+                draft.error = error
+            if event_id is not None:
+                draft.event_id = event_id
+            if html_link is not None:
+                draft.html_link = html_link
+            if confirmed_at is not None:
+                draft.confirmed_at = confirmed_at
             session.add(draft)
             await session.flush()
             await session.refresh(draft)

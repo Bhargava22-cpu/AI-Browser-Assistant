@@ -8,11 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 import agent_runner
 import database
 from models import (
+    CalendarEventDraftResponse,
     CommandRequest,
     CommandResponse,
     EmailDraftResponse,
+    EmailDraftReviseRequest,
     LearnedFieldsRequest,
     LearnedFieldsResponse,
+    TaskReplyRequest,
+    TaskReplyResponse,
     TaskResponse,
     UserProfileRequest,
     UserProfileResponse,
@@ -61,6 +65,17 @@ async def get_status(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskResponse.model_validate(task.model_dump())
+
+
+@app.post("/tasks/{task_id}/reply", response_model=TaskReplyResponse)
+async def reply_to_task(task_id: str, body: TaskReplyRequest):
+    # Currently only form_filling's missing-field prompts are repliable — see
+    # agent_runner.answer_task_reply's docstring.
+    try:
+        result = await agent_runner.answer_task_reply(task_id, body.message)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return TaskReplyResponse(**result)
 
 
 @app.get("/user/profile", response_model=UserProfileResponse)
@@ -118,6 +133,43 @@ async def discard_email_draft(draft_id: str):
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
     return EmailDraftResponse.model_validate(draft.model_dump())
+
+
+@app.post("/email/drafts/{draft_id}/revise", response_model=EmailDraftResponse)
+async def revise_email_draft(draft_id: str, body: EmailDraftReviseRequest):
+    try:
+        draft = await agent_runner.revise_email_draft(draft_id, body.feedback)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return EmailDraftResponse.model_validate(draft.model_dump())
+
+
+@app.get("/calendar/drafts/{draft_id}", response_model=CalendarEventDraftResponse)
+async def get_calendar_draft(draft_id: str):
+    draft = await database.get_calendar_draft(draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return CalendarEventDraftResponse.model_validate(draft.model_dump())
+
+
+@app.post("/calendar/drafts/{draft_id}/confirm", response_model=CalendarEventDraftResponse)
+async def confirm_calendar_draft(draft_id: str):
+    # agent_runner.confirm_calendar_event is the only path that ever calls the Calendar
+    # API — this route exists solely so a human click can reach it.
+    draft = await agent_runner.confirm_calendar_event(draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return CalendarEventDraftResponse.model_validate(draft.model_dump())
+
+
+@app.post("/calendar/drafts/{draft_id}/discard", response_model=CalendarEventDraftResponse)
+async def discard_calendar_draft(draft_id: str):
+    draft = await agent_runner.discard_calendar_draft(draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    return CalendarEventDraftResponse.model_validate(draft.model_dump())
 
 
 @app.websocket("/ws/{task_id}")

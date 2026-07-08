@@ -46,6 +46,24 @@ class EmailDraft(SQLModel, table=True):
     sent_at: Optional[datetime] = Field(default=None)
 
 
+class CalendarEventDraft(SQLModel, table=True):
+    draft_id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    task_id: str
+    title: str
+    start: str  # ISO 8601 datetime string
+    end: str  # ISO 8601 datetime string
+    timezone: str
+    recurrence: Optional[str] = Field(default=None)  # RFC5545 RRULE
+    attendees: str = Field(default="[]")  # JSON string list[str]
+    description: str = Field(default="")
+    status: str = Field(default="pending_confirmation")  # pending_confirmation | created | failed | discarded
+    error: Optional[str] = Field(default=None)
+    event_id: Optional[str] = Field(default=None)  # Google Calendar event id, once created
+    html_link: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    confirmed_at: Optional[datetime] = Field(default=None)
+
+
 # ---------- API request/response models ----------
 
 class CommandRequest(BaseModel):
@@ -146,3 +164,48 @@ class EmailDraftResponse(BaseModel):
     error: Optional[str]
     created_at: datetime
     sent_at: Optional[datetime]
+
+
+class EmailDraftReviseRequest(BaseModel):
+    feedback: str
+
+
+class CalendarEventDraftResponse(BaseModel):
+    draft_id: str
+    task_id: str
+    title: str
+    start: str
+    end: str
+    timezone: str
+    recurrence: Optional[str]
+    attendees: list[str]
+    description: str
+    status: str
+    error: Optional[str]
+    event_id: Optional[str]
+    html_link: Optional[str]
+    created_at: datetime
+    confirmed_at: Optional[datetime]
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_attendees(cls, data):
+        if isinstance(data, dict) and isinstance(data.get("attendees"), str):
+            data["attendees"] = json.loads(data["attendees"])
+        return data
+
+
+class TaskReplyRequest(BaseModel):
+    message: str
+
+
+class FilledFieldOutcome(BaseModel):
+    label: str
+    success: bool
+    error: Optional[str] = None
+
+
+class TaskReplyResponse(BaseModel):
+    filled: list[FilledFieldOutcome]
+    still_missing: list[str]
+    status: str

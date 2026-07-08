@@ -5,7 +5,7 @@ from groq import APIError
 
 from ._llm import get_groq_client as _client_instance
 from ._llm import get_text_model, parse_json_response
-from .models import FieldPlan, FieldSource, FieldSpec, FieldType
+from .models import FieldPlan, FieldSource, FieldSpec, FieldType, describe_fields_for_llm
 
 # Ordered (keyword, profile_key) rules — first match wins. Checked before falling
 # back to a batched LLM call, so obvious fields never cost a token.
@@ -110,16 +110,7 @@ def _map_via_llm(
     fields: list[FieldSpec], profile_flat: dict
 ) -> tuple[dict[str, FieldPlan], list[str]]:
     warnings: list[str] = []
-    field_descriptions = [
-        {
-            "marker_id": f.marker_id,
-            "label": f.label,
-            "field_type": f.field_type.value,
-            "options": f.options,
-            "required": f.required,
-        }
-        for f in fields
-    ]
+    field_descriptions = describe_fields_for_llm(fields, include_required=True)
     user_prompt = json.dumps(
         {
             "available_profile_keys": list(profile_flat.keys()),

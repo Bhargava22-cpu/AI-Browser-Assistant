@@ -1,4 +1,3 @@
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -78,30 +77,15 @@ def test_get_gmail_service_builds_once_and_caches():
     mock_build.assert_called_once()
 
 
-def test_load_credentials_returns_cached_valid_token_without_reauthorizing(tmp_path):
-    token_path = tmp_path / "token.json"
-    token_path.write_text(json.dumps({"token": "abc"}))
-
-    mock_creds = MagicMock(valid=True)
-    with patch("modules.email_assistant.gmail_client.TOKEN_PATH", token_path), patch(
-        "modules.email_assistant.gmail_client.Credentials.from_authorized_user_file",
-        return_value=mock_creds,
-    ) as mock_from_file, patch(
-        "modules.email_assistant.gmail_client.InstalledAppFlow"
-    ) as mock_flow:
+def test_load_credentials_delegates_to_shared_google_auth_with_gmail_scope():
+    # The actual OAuth cache/refresh/consent-flow logic is shared and tested once in
+    # modules/tests/test_google_auth.py — this only checks gmail_client wires its own
+    # least-privilege scope and token/secret paths into that shared loader.
+    mock_creds = MagicMock()
+    with patch("modules.email_assistant.gmail_client._google_auth.load_credentials", return_value=mock_creds) as mock_load:
         creds = gmail_client._load_credentials()
 
     assert creds is mock_creds
-    mock_from_file.assert_called_once()
-    mock_flow.from_client_secrets_file.assert_not_called()
-
-
-def test_load_credentials_runs_consent_flow_when_no_token_and_no_secret(tmp_path):
-    token_path = tmp_path / "token.json"
-    secret_path = tmp_path / "client_secret.json"  # deliberately not created
-
-    with patch("modules.email_assistant.gmail_client.TOKEN_PATH", token_path), patch(
-        "modules.email_assistant.gmail_client.CLIENT_SECRET_PATH", secret_path
-    ):
-        with pytest.raises(FileNotFoundError, match="client secret"):
-            gmail_client._load_credentials()
+    mock_load.assert_called_once_with(
+        gmail_client.SCOPES, gmail_client.CLIENT_SECRET_PATH, gmail_client.TOKEN_PATH
+    )

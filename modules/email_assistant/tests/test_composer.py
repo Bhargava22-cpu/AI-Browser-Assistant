@@ -101,3 +101,41 @@ def test_malformed_json_response_bubbles_as_value_error():
     with patch("modules.email_assistant.composer._client_instance", return_value=mock_client):
         with pytest.raises(ValueError, match="Failed to compose email"):
             run(compose_email(_PROFILE, "mentor@example.com", "tell them I applied"))
+
+
+def test_revise_without_feedback_raises_without_calling_llm():
+    previous = EmailDraftPlan(to_email="mentor@example.com", subject="Hi", body="Old body")
+    with patch("modules.email_assistant.composer._client_instance") as mock_instance:
+        with pytest.raises(ValueError, match="feedback is required to revise"):
+            run(compose_email(_PROFILE, "mentor@example.com", "", revise_from=previous))
+
+    mock_instance.assert_not_called()
+
+
+def test_revise_does_not_require_body_intent():
+    previous = EmailDraftPlan(to_email="mentor@example.com", subject="Hi", body="Old body")
+    mock_client = _mock_llm_response({"subject": "Hi", "body": "Shorter, more formal body."})
+    with patch("modules.email_assistant.composer._client_instance", return_value=mock_client):
+        draft = run(
+            compose_email(
+                _PROFILE, "mentor@example.com", "", revise_from=previous, feedback="make it shorter and more formal"
+            )
+        )
+
+    assert draft.body == "Shorter, more formal body."
+
+
+def test_revise_sends_previous_draft_and_feedback_to_llm():
+    previous = EmailDraftPlan(to_email="mentor@example.com", subject="Hi", body="Old body")
+    mock_client = _mock_llm_response({"subject": "Hi", "body": "Revised body."})
+    with patch("modules.email_assistant.composer._client_instance", return_value=mock_client):
+        run(
+            compose_email(
+                _PROFILE, "mentor@example.com", "", revise_from=previous, feedback="make it shorter"
+            )
+        )
+
+    _, kwargs = mock_client.chat.completions.create.call_args
+    user_message = json.loads(kwargs["messages"][1]["content"])
+    assert user_message["previous_draft"] == {"subject": "Hi", "body": "Old body"}
+    assert user_message["revision_feedback"] == "make it shorter"

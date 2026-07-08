@@ -1,8 +1,11 @@
 import os
 import queue
+import re
 import threading
 from playwright.sync_api import sync_playwright, Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
 from langchain.tools import tool
+
+_MAX_PAGE_TEXT_CHARS = 4000
 
 
 class BrowserWorker:
@@ -96,6 +99,35 @@ def type_text(input: str) -> str:
             return f"Timeout: element '{selector}' not found on page"
         except PlaywrightError as e:
             return f"Failed to type into '{selector}': {e}"
+    return _worker.run(_fn)
+
+
+@tool
+def get_page_text(selector: str) -> str:
+    """Read the visible text content of the current page, so you can actually see
+    what's on it instead of guessing from the page title alone — use this to
+    summarize an article, list search results, or answer questions about page
+    content. Pass an empty string to read the whole page (body), or a CSS
+    selector to read just one element/section. Long pages are truncated."""
+    target = selector.strip() or "body"
+
+    def _fn(page):
+        try:
+            page.wait_for_selector(target, timeout=8000)
+            text = page.inner_text(target)
+        except PlaywrightTimeoutError:
+            return f"Timeout: element '{target}' not found on page"
+        except PlaywrightError as e:
+            return f"Failed to read '{target}': {e}"
+
+        text = re.sub(r"\n{3,}", "\n\n", text).strip()
+        if not text:
+            return "No visible text found."
+        if len(text) > _MAX_PAGE_TEXT_CHARS:
+            remaining = len(text) - _MAX_PAGE_TEXT_CHARS
+            text = text[:_MAX_PAGE_TEXT_CHARS] + f"\n...(truncated, {remaining} more characters)"
+        return text
+
     return _worker.run(_fn)
 
 

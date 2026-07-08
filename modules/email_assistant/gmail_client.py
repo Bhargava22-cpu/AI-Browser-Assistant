@@ -4,12 +4,12 @@ from email.mime.text import MIMEText
 from pathlib import Path
 
 from google.auth.exceptions import RefreshError
-from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow, WSGITimeoutError
+from google_auth_oauthlib.flow import WSGITimeoutError
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from .. import _google_auth
 from .models import EmailDraftPlan, EmailSendResult
 
 # Least-privilege scope — this module only ever sends, never reads the inbox.
@@ -23,30 +23,7 @@ _service = None
 
 
 def _load_credentials() -> Credentials:
-    creds = None
-    if TOKEN_PATH.exists():
-        creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
-
-    if creds and creds.valid:
-        return creds
-
-    if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-    else:
-        if not CLIENT_SECRET_PATH.exists():
-            raise FileNotFoundError(
-                f"Gmail OAuth client secret not found at {CLIENT_SECRET_PATH} — "
-                "download it from Google Cloud Console and place it there"
-            )
-        # Opens a real browser window on this machine for the Google consent screen.
-        # timeout_seconds bounds an abandoned/closed consent tab — without it the
-        # loopback server (and the executor thread running it) hangs forever, which
-        # then blocks `uvicorn --reload`'s graceful shutdown on process exit.
-        flow = InstalledAppFlow.from_client_secrets_file(str(CLIENT_SECRET_PATH), SCOPES)
-        creds = flow.run_local_server(port=0, timeout_seconds=300)
-
-    TOKEN_PATH.write_text(creds.to_json())
-    return creds
+    return _google_auth.load_credentials(SCOPES, CLIENT_SECRET_PATH, TOKEN_PATH)
 
 
 def get_gmail_service():

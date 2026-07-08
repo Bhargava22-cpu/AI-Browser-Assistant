@@ -6,10 +6,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/command': 'http://localhost:8000',
-      '/status':  'http://localhost:8000',
-      '/user':    'http://localhost:8000',
-      '/email':   'http://localhost:8000',
+      '/command':  'http://localhost:8000',
+      '/status':   'http://localhost:8000',
+      '/user':     'http://localhost:8000',
+      '/email':    'http://localhost:8000',
+      '/calendar': 'http://localhost:8000',
+      '/tasks':    'http://localhost:8000',
       '/ws': { target: 'ws://localhost:8000', ws: true },
     },
   },

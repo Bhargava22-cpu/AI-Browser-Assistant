@@ -1,5 +1,5 @@
 """
-5 pytest tests for the Week 3 intent parser — one per action type.
+6 pytest tests for the Week 3 intent parser — one per action type.
 The Groq API call is mocked so tests run offline and deterministically.
 """
 import asyncio
@@ -118,3 +118,19 @@ def test_click_action():
     assert result["action"] == "click"
     assert result["data"]["element"] == "submit button"
     assert len(result["steps"]) == 2
+
+
+# ── 6. calendar ───────────────────────────────────────────────────────────────
+
+def test_calendar_action():
+    expected = {
+        "action": "calendar",
+        "target_url": None,
+        "data": {"schedule_request": "add DSA practice every day at 8pm for 2 weeks"},
+        "steps": ["Parse the scheduling request", "Resolve dates and recurrence", "Show event preview", "Create event on confirmation"],
+    }
+    with patch("intent_parser._client_instance", return_value=_mock_groq_response(expected)):
+        result = run(parse_intent("add DSA practice every day at 8pm for 2 weeks"))
+
+    assert result["action"] == "calendar"
+    assert "schedule_request" in result["data"]
