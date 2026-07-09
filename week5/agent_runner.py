@@ -30,7 +30,12 @@ from executor import build_agent  # noqa: E402 — must come after sys.path fix
 from intent_parser import parse_intent  # noqa: E402
 from tools import get_worker  # noqa: E402
 
-from modules.form_filling import answer_missing_fields, describe_fill_result, fill_form  # noqa: E402
+from modules.form_filling import (  # noqa: E402
+    answer_missing_fields,
+    describe_fill_result,
+    describe_missing_field,
+    fill_form,
+)
 from modules.email_assistant import (  # noqa: E402
     EmailDraftPlan,
     compose_email,
@@ -227,7 +232,7 @@ async def run_agent_task(task_id: str, command: str) -> None:
             )
             if result.missing_fields:
                 _pending_field_prompts[task_id] = result.missing_fields
-                missing_labels = ", ".join(f.label or f.selector for f in result.missing_fields)
+                missing_labels = ", ".join(describe_missing_field(f) for f in result.missing_fields)
                 step_callback(
                     f"[form_filling][ask] I need answers for: {missing_labels}. "
                     "Reply below and I'll fill them in and remember them for next time."
@@ -438,6 +443,6 @@ async def answer_task_reply(task_id: str, message: str) -> dict:
             {"label": o.field.label or o.field.selector, "success": o.success, "error": o.error}
             for o in outcomes
         ],
-        "still_missing": [f.label or f.selector for f in still_missing],
+        "still_missing": [describe_missing_field(f) for f in still_missing],
         "status": new_status,
     }

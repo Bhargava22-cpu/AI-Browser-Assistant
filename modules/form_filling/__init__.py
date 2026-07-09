@@ -5,13 +5,27 @@ from .filler import apply_field_plan
 from .generator import generate_long_text_batch
 from .mapper import map_fields_to_profile
 from .mapper import normalize_label
-from .models import BrowserWorkerProtocol, FieldPlan, FieldSource, FieldSpec, FillOutcome, FormFillResult
+from .models import (
+    BrowserWorkerProtocol,
+    FieldPlan,
+    FieldSource,
+    FieldSpec,
+    FillOutcome,
+    FormFillResult,
+    describe_missing_field,
+)
 from .preview import build_preview
 from .profile_utils import flatten_profile
 from .reply_matcher import match_reply_to_fields
 from .upload import upload_resume
 
-__all__ = ["fill_form", "normalize_label", "describe_fill_result", "answer_missing_fields"]
+__all__ = [
+    "fill_form",
+    "normalize_label",
+    "describe_fill_result",
+    "describe_missing_field",
+    "answer_missing_fields",
+]
 
 
 def fill_form(
@@ -103,7 +117,7 @@ def describe_fill_result(result: FormFillResult) -> list[str]:
         lines.append(f"resume upload: {upload_status}")
 
     if result.missing_fields:
-        missing_labels = ", ".join(f.label or f.selector for f in result.missing_fields)
+        missing_labels = ", ".join(describe_missing_field(f) for f in result.missing_fields)
         lines.append(
             f"needs manual input: {missing_labels} — answer once via "
             "POST /user/learned-fields (key = exact field label) and it will be "

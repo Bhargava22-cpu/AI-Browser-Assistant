@@ -33,6 +33,10 @@ class FieldSpec:
     field_type: FieldType
     required: bool = False
     options: list[str] = field(default_factory=list)
+    # For a grouped RADIO field only: option label -> that option's own selector,
+    # index-aligned with `options`. Lets filler.py check the specific input matching
+    # whichever option was chosen, since `selector` alone can't disambiguate a group.
+    option_selectors: dict[str, str] = field(default_factory=dict)
     placeholder: str = ""
 
 
@@ -84,6 +88,15 @@ class FormFillResult:
 
 class BrowserWorkerProtocol(Protocol):
     def run(self, fn: Callable[[Page], Any]) -> Any: ...
+
+
+def describe_missing_field(f: FieldSpec) -> str:
+    """Label for a still-missing field, appending its choices for a select/radio
+    group (e.g. "Pizza Size (Small/Medium/Large)") so the user knows what answer
+    is expected instead of just the bare group label. Shared by the fast-path ask
+    message (week5/agent_runner.py) and the agent-tool path's describe_fill_result()."""
+    label = f.label or f.selector
+    return f"{label} ({'/'.join(f.options)})" if f.options else label
 
 
 def describe_fields_for_llm(fields: list[FieldSpec], include_required: bool = False) -> list[dict]:

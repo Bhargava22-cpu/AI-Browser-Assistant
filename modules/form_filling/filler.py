@@ -33,7 +33,23 @@ def _perform_action(field, plan: FieldPlan) -> None:
         else:
             field.frame.uncheck(field.selector, timeout=_ACTION_TIMEOUT_MS)
     elif field.field_type == FieldType.RADIO:
-        field.frame.check(field.selector, timeout=_ACTION_TIMEOUT_MS)
+        selector = field.selector
+        if field.option_selectors:
+            chosen = str(plan.value).strip()
+            selector = field.option_selectors.get(chosen)
+            if selector is None:
+                # Case-insensitive fallback — LLM/reply-matcher answers are asked to
+                # echo an option verbatim, but exact casing isn't guaranteed.
+                for option_label, option_selector in field.option_selectors.items():
+                    if option_label.strip().lower() == chosen.lower():
+                        selector = option_selector
+                        break
+            if selector is None:
+                raise ValueError(
+                    f"no matching radio option for {plan.value!r} "
+                    f"(options: {list(field.option_selectors)})"
+                )
+        field.frame.check(selector, timeout=_ACTION_TIMEOUT_MS)
     else:
         raise ValueError(f"unsupported field_type: {field.field_type}")
 
