@@ -59,14 +59,6 @@ cd week6/ui && npm run dev   # → http://localhost:5173
 
 Set `PLAYWRIGHT_HEADLESS=true` in `.env` to hide the browser window.
 
-## Tests
-
-Test files are kept local-only (gitignored, not pushed to GitHub). If present on disk:
-
-```bash
-python -m pytest modules/ week6/tests/ -v
-```
-
 ## Progress
 
 | Week | Topic                         | Output                                      |
