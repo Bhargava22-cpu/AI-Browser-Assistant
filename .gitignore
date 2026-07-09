@@ -24,6 +24,12 @@ week1/screenshots/
 week2/screenshots/
 modules/form_filling/screenshots/
 **/.gitkeep
+
+# Test files (local analysis only)
+week6/tests/
+modules/tests/
+modules/*/tests/
+.pytest_cache/
 week6/ui/README.md
 .claude/
 CLAUDE.md
